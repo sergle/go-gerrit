@@ -1,4 +1,4 @@
-package gerrit
+package api
 
 import (
     "fmt"
@@ -12,10 +12,16 @@ import (
     "github.com/sergle/go-http-digest"
 )
 
-//-------------- private ------------------
+// API access
+type API struct {
+    User string
+    Password string
+    Host string
+    CI string
+}
 
 // GET
-func (gerrit *Gerrit) fetch_json(get_url *url.URL) ([]byte, error) {
+func (gerrit *API) Fetch_json(get_url *url.URL) ([]byte, error) {
     request, err := http.NewRequest("GET", get_url.String(), nil)
     if err != nil {
         fmt.Printf("NewRequest failed: %s\n", err)
@@ -43,7 +49,7 @@ func (gerrit *Gerrit) fetch_json(get_url *url.URL) ([]byte, error) {
 }
 
 // POST
-func (gerrit *Gerrit) post_json(post_url *url.URL, json []byte) ([]byte, error) {
+func (gerrit *API) Post_json(post_url *url.URL, json []byte) ([]byte, error) {
 
     request, err := http.NewRequest("POST", post_url.String(), bytes.NewBuffer(json))
     if err != nil {

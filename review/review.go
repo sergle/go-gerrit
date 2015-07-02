@@ -1,8 +1,10 @@
-package gerrit
+package review
 
 import (
     "encoding/json"
     "net/url"
+
+    "github.com/sergle/go-gerrit/api"
 )
 
 type ReviewLabels struct {
@@ -20,7 +22,7 @@ type ReviewReply struct {
 
 // post review
 // POST /changes/{change-id}/revisions/{revision-id}/review
-func (gerrit *Gerrit) PostReview(id string, message string, mark int8) (*ReviewReply, error) {
+func Post(gerrit *api.API, id string, message string, mark int8) (*ReviewReply, error) {
 
     change_url := url.URL{Scheme: "https", Host: gerrit.Host, Opaque: "/a/changes/" + id + "/revisions/current/review"}
 
@@ -34,7 +36,7 @@ func (gerrit *Gerrit) PostReview(id string, message string, mark int8) (*ReviewR
         return nil, json_err
     }
 
-    contents, err := gerrit.post_json(&change_url, json_str)
+    contents, err := gerrit.Post_json(&change_url, json_str)
     if err != nil {
         return nil, err
     }

@@ -1,157 +1,65 @@
 package gerrit
 
 import (
-    "encoding/json"
-    "net/url"
+    "github.com/sergle/go-gerrit/api"
+    "github.com/sergle/go-gerrit/change"
+    "github.com/sergle/go-gerrit/review"
 )
 
-const NotVerified = -100
-
-// API access
 type Gerrit struct {
-    User string
-    Password string
-    Host string
-    CI string
-}
-
-type ReviewPoint struct {
-    Name string
-    Mark int
-}
-
-type Change struct {
-    Id string
-    Project string
-    Branch string
-    Owner string
-    Subject string
-    Updated string
-    Verified int
-    Mergeable bool
-    Review []ReviewPoint
-}
-
-type ChangeOwner struct {
-    Name string `json:"name"`
-}
-
-// data returned by in list
-type ShortChange struct {
-    Id string `json:"id"`
-    Project string `json:"project"`
-    Branch string `json:"branch"`
-    ChangeID string `json:"change_id"`
-    Subject string `json:"subject"`
-    Status string `json:"status"`
-    Created string `json:"created"`
-    Updated string `json:"updated"`
-    Mergeable bool `json:"mergeable"`
-    // insertions, deletions, _sortkey, _number
-    Owner *ChangeOwner `json:"owner"`
-}
-
-type LongChange struct {
-    Id string `json:"id"`
-    Project string `json:"project"`
-    Branch string `json:"branch"`
-    ChangeID string `json:"change_id"`
-    Subject string `json:"subject"`
-    Status string `json:"status"`
-    Created string `json:"created"`
-    Updated string `json:"updated"`
-    Mergeable bool `json:"mergeable"`
-    Owner *Person `json:"owner"`
-    Labels *ChangeLabels `json:"labels"`
-    // permitted_labels
-    // removable_reviewers []
-    // messages []
-}
-
-type Person struct {
-    Name string `json:"name"`
-    Email string `json:"email"`
-    Username string `json:"username"`
-    Value int8 `json:"value,omitempty"`
-}
-
-type ChangeLabels struct {
-    Verified struct {
-        Approved *Person `json:"approved"`
-        All []Person `json:"all"`
-        // values: {}
-        Values map[string]string `json:"values"`
-        DefaultValue int8 `json:"default_value"`
-    } `json:"verified"`
-    CodeReview struct {
-        Approved *Person `json:"approved"`
-        All []Person `json:"all"`
-        Values map[string]string `json:"values"`
-        DefaultValue int8 `json:"default_value"`
-    } `json:"Code-Review"`
+    api *api.API
 }
 
 //----------- public api -------------
 
 func New(user string, password string, host string, ci string) *Gerrit {
-    return &Gerrit{
+     api := &api.API{
                 User:     user,
                 Password: password,
                 Host:     host,
                 CI:       ci,
             }
+    return &Gerrit{api: api}
 }
 
 // get list of changes according to the query string
-func (gerrit *Gerrit) FetchChangeList(query_string string) ([]ShortChange, error) {
-    list_url, _ := url.Parse("https://" + gerrit.Host + "/a/changes/" + query_string)
-
-    contents, err := gerrit.fetch_json(list_url)
-    if err != nil {
-        return nil, err
-    }
-
-    var data []ShortChange
-    err = json.Unmarshal(contents, &data)
-
-    if err != nil {
-        //fmt.Printf("JSON failed: %s\n", err)
-        //fmt.Printf("JSON data is: %s\n", contents)
-        return nil, err
-    }
-
-    return data, nil
+func (gerrit *Gerrit) FetchChangeList(query_string string) ([]change.ShortChange, error) {
+    return change.FetchList(gerrit.api, query_string)
 }
 
 // fetch detailed information about the change
-func (gerrit *Gerrit) GetChange(id string) (*LongChange, error) {
-
-    change_url := url.URL{Scheme: "https", Host: gerrit.Host, Opaque: "/a/changes/" + id + "/detail/"}
-
-    contents, err := gerrit.fetch_json(&change_url)
-    if err != nil {
-        return nil, err
-    }
-
-    var data LongChange
-    err = json.Unmarshal(contents, &data)
-    if err != nil {
-        return nil, err
-    }
-
-    return &data, nil
+func (gerrit *Gerrit) GetChange(id string) (*change.LongChange, error) {
+    return change.Get(gerrit.api, id)
 }
 
 // get mark which set by our Continuous Integration tool
-func (gerrit *Gerrit) IsVerified(change *LongChange) (int8) {
-    var verified int8 = -100
-    verified = NotVerified
-    for _, p := range change.Labels.Verified.All {
-        if p.Username == gerrit.CI {
-            verified = p.Value
-            break
-        }
-    }
+func (gerrit *Gerrit) IsVerified(chg *change.LongChange) (string, int8) {
+    return change.IsVerified(gerrit.api, chg)
+}
 
-    return verified
+// post review message
+func (gerrit *Gerrit) PostReview(id string, message string, mark int8) (*review.ReviewReply, error) {
+    return review.Post(gerrit.api, id, message, mark)
+}
+
+// sort list of changes by Updated field (recently-updated first)
+func (gerrit *Gerrit) SortChanges(list []*change.LongChange) {
+    change.Sort(list)
+    return
+}
+
+// is this username used for API access
+func (gerrit *Gerrit) IsMyself(username string) bool {
+    if username == gerrit.api.User {
+        return true
+    }
+    return false
+}
+
+// it this username used by Continuous Integration tool
+func (gerrit *Gerrit) IsCI(username string) bool {
+    if username == gerrit.api.CI {
+        return true
+    }
+    return false
 }
