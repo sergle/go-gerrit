@@ -128,8 +128,8 @@ func Get(gerrit *api.API, id string) (*LongChange, error) {
 }
 
 // get mark which set by our Continuous Integration tool
-func IsVerified(gerrit *api.API, change *LongChange) (string, int8) {
-    if gerrit.CI == "" {
+func (change *LongChange) IsVerified(ci string) (string, int8) {
+    if ci == "" {
         return "", NotVerified
     }
 
@@ -137,11 +137,11 @@ func IsVerified(gerrit *api.API, change *LongChange) (string, int8) {
 
     verified = NotVerified
     for _, p := range change.Labels.Verified.All {
-        if p.Username == gerrit.CI {
+        if p.Username == ci {
             verified = p.Value
             break
         }
     }
 
-    return gerrit.CI, verified
+    return ci, verified
 }

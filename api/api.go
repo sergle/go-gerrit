@@ -17,7 +17,6 @@ type API struct {
     User string
     Password string
     Host string
-    CI string
 }
 
 // GET

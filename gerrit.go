@@ -8,6 +8,8 @@ import (
 
 type Gerrit struct {
     api *api.API
+    CI string
+    CI_cb func(string) string
 }
 
 //----------- public api -------------
@@ -17,9 +19,20 @@ func New(user string, password string, host string, ci string) *Gerrit {
                 User:     user,
                 Password: password,
                 Host:     host,
-                CI:       ci,
             }
-    return &Gerrit{api: api}
+    return &Gerrit{api: api, CI: ci}
+}
+
+func (gerrit *Gerrit) SetCICallback(f func(string) string) () {
+    gerrit.CI_cb = f
+    return
+}
+
+func (gerrit *Gerrit) GetCI(chg *change.LongChange) string {
+    if gerrit.CI_cb == nil  {
+        return gerrit.CI
+    }
+    return gerrit.CI_cb(chg.Project)
 }
 
 // get list of changes according to the query string
@@ -34,7 +47,8 @@ func (gerrit *Gerrit) GetChange(id string) (*change.LongChange, error) {
 
 // get mark which set by our Continuous Integration tool
 func (gerrit *Gerrit) IsVerified(chg *change.LongChange) (string, int8) {
-    return change.IsVerified(gerrit.api, chg)
+    ci := gerrit.GetCI(chg)
+    return chg.IsVerified(ci)
 }
 
 // post review message
@@ -57,8 +71,10 @@ func (gerrit *Gerrit) IsMyself(username string) bool {
 }
 
 // it this username used by Continuous Integration tool
-func (gerrit *Gerrit) IsCI(username string) bool {
-    if username == gerrit.api.CI {
+func (gerrit *Gerrit) IsCI(username string, chg *change.LongChange) bool {
+    ci := gerrit.GetCI(chg)
+
+    if username == ci {
         return true
     }
     return false
