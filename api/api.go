@@ -8,8 +8,7 @@ import (
     "net/url"
     "errors"
     "bytes"
-
-    "github.com/sergle/go-http-digest"
+    "encoding/base64"
 )
 
 // API access
@@ -28,9 +27,9 @@ func (gerrit *API) Fetch_json(get_url *url.URL) ([]byte, error) {
     }
     // need to re-assign to ensure that URL.Opaque part kept
     request.URL = get_url
+    request.Header.Set("Authorization", "Basic " + basicAuth(gerrit.User, gerrit.Password))
 
-    // HTTP digest authentication
-    t := digest.NewTransport(gerrit.User, gerrit.Password)
+    t := http.DefaultTransport;
 
     resp, err := t.RoundTrip(request)
     if err != nil {
@@ -58,8 +57,9 @@ func (gerrit *API) Post_json(post_url *url.URL, json []byte) ([]byte, error) {
     // avoid escaping
     request.URL = post_url
     request.Header.Set("Content-Type", "application/json")
+    request.Header.Set("Authorization", "Basic " + basicAuth(gerrit.User, gerrit.Password))
 
-    t := digest.NewTransport(gerrit.User, gerrit.Password)
+    t := http.DefaultTransport;
 
     resp, err := t.RoundTrip(request)
     if err != nil {
@@ -91,4 +91,9 @@ func parse_response(resp *http.Response) ([]byte, error) {
     }
 
     return contents, nil
+}
+
+func basicAuth(username, password string) string {
+    auth := username + ":" + password
+    return base64.StdEncoding.EncodeToString([]byte(auth))
 }
